@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 import pytest
 from fastapi import FastAPI
@@ -11,6 +12,7 @@ from app.api.place import router as place_router
 from app.api.post import router as post_router
 from app.db.database import Base, get_db
 from app.models.place import Place
+from app.models.post import Post
 
 
 @pytest.fixture()
@@ -50,6 +52,21 @@ def client(tmp_path):
             ),
         ]
     )
+    created_at = datetime(2026, 7, 15, 1, 0, 0)
+    updated_at = datetime(2026, 7, 15, 1, 5, 0)
+    db.add(
+        Post(
+            id=1,
+            place_id=15,
+            nickname="tester",
+            password="secret",
+            title="원본 제목",
+            content="원본 내용",
+            rating=5,
+            created_at=created_at,
+            updated_at=updated_at,
+        )
+    )
     db.commit()
     db.close()
 
@@ -68,6 +85,7 @@ def client(tmp_path):
 
     test_client = TestClient(app)
     test_client.localhub_app = app
+    test_client.testing_session_factory = TestingSessionLocal
 
     yield test_client
 
@@ -130,6 +148,78 @@ def test_existing_posts_and_chat_routes_are_still_registered(client):
     chat_response = client.post("/chat", json={"query": "해운대 관광지 추천"})
 
     assert posts_response.status_code == 200
-    assert posts_response.json() == {"total": 0, "items": []}
+    assert posts_response.json()["total"] == 1
     assert chat_response.status_code == 200
     assert "answer" in chat_response.json()
+
+
+def test_verify_post_password_success_does_not_change_post(client):
+    before = client.get("/posts/1").json()
+    session = client.testing_session_factory()
+    try:
+        before_updated_at = session.get(Post, 1).updated_at
+    finally:
+        session.close()
+
+    response = client.post("/posts/1/verify-password", json={"password": "secret"})
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert client.get("/posts/1").json() == before
+
+    session = client.testing_session_factory()
+    try:
+        post = session.get(Post, 1)
+        assert post.title == "원본 제목"
+        assert post.content == "원본 내용"
+        assert post.rating == 5
+        assert post.updated_at == before_updated_at
+    finally:
+        session.close()
+
+
+def test_verify_post_password_wrong_password_does_not_change_post(client):
+    before = client.get("/posts/1").json()
+    session = client.testing_session_factory()
+    try:
+        before_updated_at = session.get(Post, 1).updated_at
+    finally:
+        session.close()
+
+    response = client.post("/posts/1/verify-password", json={"password": "wrong"})
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "비밀번호가 일치하지 않습니다."}
+    assert client.get("/posts/1").json() == before
+
+    session = client.testing_session_factory()
+    try:
+        assert session.get(Post, 1).updated_at == before_updated_at
+    finally:
+        session.close()
+
+
+def test_verify_post_password_missing_post(client):
+    response = client.post("/posts/999/verify-password", json={"password": "secret"})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "게시글을 찾을 수 없습니다."}
+
+
+def test_update_still_verifies_password(client):
+    response = client.put(
+        "/posts/1",
+        data={"password": "wrong", "title": "수정 제목", "content": "수정 내용", "rating": "4"},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "비밀번호가 일치하지 않습니다."}
+
+
+def test_delete_still_verifies_password_and_succeeds_with_correct_password(client):
+    wrong_response = client.request("DELETE", "/posts/1", json={"password": "wrong"})
+    right_response = client.request("DELETE", "/posts/1", json={"password": "secret"})
+
+    assert wrong_response.status_code == 403
+    assert wrong_response.json() == {"detail": "비밀번호가 일치하지 않습니다."}
+    assert right_response.status_code == 204

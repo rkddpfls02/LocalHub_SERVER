@@ -1,6 +1,6 @@
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
@@ -8,7 +8,7 @@ from typing import List
 from app.db.database import get_db
 from app.schemas.place import PlaceSearchItem
 from app.schemas.post import PostCreateResponse, PostDeleteRequest, PostDetailResponse, PostImageItem, PostListItem, PostListResponse
-from app.services.post_service import create_post, delete_post, get_post, get_post_image, list_posts, update_post
+from app.services.post_service import create_post, delete_post, get_post, get_post_image, list_posts, update_post, verify_post_password
 from app.services.place_service import search_places
 
 
@@ -74,6 +74,11 @@ def read_image(image_id: int, db: Session = Depends(get_db)):
 @router.get("/{post_id}", response_model=PostDetailResponse)
 def read(post_id: int, db: Session = Depends(get_db)):
     return _detail(get_post(db, post_id))
+
+
+@router.post("/{post_id}/verify-password", status_code=status.HTTP_204_NO_CONTENT)
+def verify_password(post_id: int, payload: PostDeleteRequest, db: Session = Depends(get_db)):
+    verify_post_password(db, post_id, payload.password)
 
 
 @router.put("/{post_id}", response_model=PostDetailResponse)

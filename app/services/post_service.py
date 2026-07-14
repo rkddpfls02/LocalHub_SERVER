@@ -77,6 +77,12 @@ def get_post_image(db: Session, image_id: int) -> PostImage:
     return image
 
 
+def verify_post_password(db: Session, post_id: int, password: str) -> None:
+    post = get_post(db, post_id)
+    if post.password != password:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="비밀번호가 일치하지 않습니다.")
+
+
 async def update_post(db: Session, post_id: int, password: str, title: str, content: str, images: list[UploadFile] | None, rating: int | None = None) -> Post:
     post = get_post(db, post_id)
     if post.password != password:
