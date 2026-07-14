@@ -1,7 +1,18 @@
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
 from app.models.place import Place
+
+
+def get_place_by_content_id(db: Session, content_id: str) -> Place:
+    place = db.query(Place).filter(Place.content_id == content_id).first()
+    if place is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="장소를 찾을 수 없습니다.",
+        )
+    return place
 
 
 def search_places(db: Session, keyword: str, limit: int = 20) -> list[dict]:
