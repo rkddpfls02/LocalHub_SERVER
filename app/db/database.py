@@ -20,7 +20,7 @@ Base = declarative_base()
 
 
 def init_db() -> None:
-    from app.models import Place, Post, PostImage
+    from app.models import Festival, Place, Post, PostImage
 
     Base.metadata.create_all(bind=engine)
     _migrate_empty_legacy_post_tables()
