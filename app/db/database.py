@@ -36,6 +36,9 @@ def _ensure_festival_columns() -> None:
     required_columns = {
         "eventstartdate": "TEXT",
         "eventenddate": "TEXT",
+        "content_id": "TEXT",
+        "first_image": "TEXT",
+        "first_image2": "TEXT",
         "eventplace": "TEXT",
         "playtime": "TEXT",
         "program": "TEXT",
@@ -60,7 +63,18 @@ def _ensure_festival_columns() -> None:
                 continue
             connection.execute(text(f"ALTER TABLE festivals ADD COLUMN {column_name} {column_type}"))
 
+    _backfill_festival_images()
     _ensure_place_review_columns()
+
+
+def _backfill_festival_images() -> None:
+    from app.utils.load_json_data import backfill_festival_images
+
+    db = SessionLocal()
+    try:
+        backfill_festival_images(db)
+    finally:
+        db.close()
 
 
 def _ensure_place_review_columns() -> None:
