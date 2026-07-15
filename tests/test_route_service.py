@@ -4,20 +4,22 @@ from app.services.route_service import build_tmap_request_payload
 
 
 class RouteServiceTests(unittest.TestCase):
-    def test_build_tmap_request_payload_with_start_and_places(self):
-        start_place = {"name": "서울역", "latitude": 37.5547, "longitude": 126.9706}
-        places = [
-            {"id": 1, "name": "경복궁", "latitude": 37.5796, "longitude": 126.9770},
-            {"id": 2, "name": "남산타워", "latitude": 37.5512, "longitude": 126.9882},
+    def test_build_tmap_request_payload_uses_first_and_last_places(self):
+        start_place = {"id": 1, "name": "출발지", "latitude": 35.1, "longitude": 129.1}
+        end_place = {"id": 5, "name": "도착지", "latitude": 35.5, "longitude": 129.5}
+        via_places = [
+            {"id": 2, "name": "경유지1", "latitude": 35.2, "longitude": 129.2},
+            {"id": 3, "name": "경유지2", "latitude": 35.3, "longitude": 129.3},
+            {"id": 4, "name": "경유지3", "latitude": 35.4, "longitude": 129.4},
         ]
 
-        payload = build_tmap_request_payload(start_place, places)
+        payload = build_tmap_request_payload(start_place, end_place, via_places)
 
-        self.assertEqual(payload["startName"], "서울역")
-        self.assertEqual(payload["startX"], "126.9706")
-        self.assertEqual(payload["startY"], "37.5547")
-        self.assertEqual(len(payload["viaPoints"]), 2)
-        self.assertEqual(payload["viaPoints"][0]["viaPointName"], "경복궁")
+        self.assertEqual(payload["startName"], "출발지")
+        self.assertEqual(payload["endName"], "도착지")
+        self.assertEqual(payload["endX"], "129.5")
+        self.assertEqual(len(payload["viaPoints"]), 3)
+        self.assertEqual(payload["viaPoints"][0]["viaPointId"], "2")
 
 
 if __name__ == "__main__":

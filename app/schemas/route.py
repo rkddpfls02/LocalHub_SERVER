@@ -1,20 +1,6 @@
 from pydantic import BaseModel
 
 
-class RouteOptimizeRequest(BaseModel):
-    pass
-
-
-class PlaceDetailResponse(BaseModel):
-    id: int
-    name: str
-    latitude: float
-    longitude: float
-    contentTypeId: int | None = None
-    contentType: str | None = None
-    address: str | None = None
-
-
 class RoutePlaceResponse(BaseModel):
     order: int
     placeId: int
