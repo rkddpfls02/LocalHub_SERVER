@@ -6,6 +6,9 @@ class FestivalItem(BaseModel):
     addr1: str = ""
     startDate: str
     endDate: str
+    contentId: str | None = None
+    firstImage: str | None = None
+    firstImage2: str | None = None
     eventstartdate: str | None = None
     eventenddate: str | None = None
     eventplace: str | None = None

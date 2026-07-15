@@ -139,6 +139,13 @@ def _normalize_text(value: Any) -> str | None:
     return text or None
 
 
+def _normalize_festival_image_url(value: Any) -> str | None:
+    url = _normalize_text(value)
+    if url and url.startswith("http://tong.visitkorea.or.kr/"):
+        return f"https://{url.removeprefix('http://')}"
+    return url
+
+
 def load_festival_json(db: Session, overwrite: bool = False) -> int:
     if not FESTIVAL_DATA_FILE.exists():
         return 0
@@ -171,6 +178,9 @@ def load_festival_json(db: Session, overwrite: bool = False) -> int:
             start_date=start_date,
             end_date=end_date,
             addr1=item.get("addr1", ""),
+            content_id=_normalize_text(item.get("contentid")),
+            first_image=_normalize_festival_image_url(item.get("firstimage")),
+            first_image2=_normalize_festival_image_url(item.get("firstimage2")),
             eventstartdate=_normalize_text(item.get("eventstartdate")),
             eventenddate=_normalize_text(item.get("eventenddate")),
             eventplace=_normalize_text(item.get("eventplace")),
@@ -194,3 +204,49 @@ def load_festival_json(db: Session, overwrite: bool = False) -> int:
 
     db.commit()
     return created
+
+
+def backfill_festival_images(db: Session) -> int:
+    """Fill only missing festival identifiers and images from the source JSON."""
+    if not FESTIVAL_DATA_FILE.exists():
+        return 0
+
+    with FESTIVAL_DATA_FILE.open("r", encoding="utf-8") as file:
+        payload: dict[str, Any] = json.load(file)
+
+    by_content_id: dict[str, dict[str, Any]] = {}
+    by_schedule: dict[tuple[str, date, date], dict[str, Any]] = {}
+    for item in payload.get("items", []):
+        title = _normalize_text(item.get("title"))
+        start_date = _parse_festival_date(item.get("eventstartdate") or item.get("startDate"))
+        end_date = _parse_festival_date(item.get("eventenddate") or item.get("endDate"))
+        if not title or start_date is None or end_date is None:
+            continue
+        content_id = _normalize_text(item.get("contentid"))
+        if content_id:
+            by_content_id[content_id] = item
+        by_schedule[(title, start_date, end_date)] = item
+
+    changed = 0
+    for festival in db.query(Festival).all():
+        item = by_content_id.get(festival.content_id or "")
+        if item is None:
+            item = by_schedule.get((festival.title, festival.start_date, festival.end_date))
+        if item is None:
+            continue
+
+        updates = {
+            "content_id": _normalize_text(item.get("contentid")),
+            "first_image": _normalize_festival_image_url(item.get("firstimage")),
+            "first_image2": _normalize_festival_image_url(item.get("firstimage2")),
+        }
+        row_changed = False
+        for field_name, value in updates.items():
+            if not _normalize_text(getattr(festival, field_name)) and value:
+                setattr(festival, field_name, value)
+                row_changed = True
+        changed += int(row_changed)
+
+    if changed:
+        db.commit()
+    return changed
