@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.chat import router as chat_router
+from app.api.festival import router as festival_router
 from app.api.post import router as post_router
 from app.db.database import init_db
 
@@ -28,6 +29,7 @@ app.add_middleware(
 
 init_db()
 app.include_router(chat_router)
+app.include_router(festival_router)
 app.include_router(post_router)
 
 
