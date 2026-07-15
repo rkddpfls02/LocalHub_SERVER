@@ -1,4 +1,4 @@
-from sqlalchemy import or_
+from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from app.models.place import Place
@@ -23,7 +23,13 @@ def search_places(db: Session, keyword: str, limit: int = 20) -> list[dict]:
             )
         )
 
-    places = query.order_by(Place.title.asc()).limit(limit).all()
+    places = query.order_by(
+        case(
+            (Place.title == normalized_keyword, 0),
+            else_=1,
+        ),
+        Place.title.asc(),
+    ).limit(limit).all()
     return [
         {
             "id": place.id,
