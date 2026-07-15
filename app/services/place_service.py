@@ -1,7 +1,15 @@
-from sqlalchemy import or_
+from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from app.models.place import Place
+
+
+def normalize_place_image_url(url: str | None) -> str | None:
+    if not url:
+        return url
+    if url.startswith("http://tong.visitkorea.or.kr/"):
+        return f"https://{url.removeprefix('http://')}"
+    return url
 
 
 def search_places(db: Session, keyword: str, limit: int = 20) -> list[dict]:
@@ -23,7 +31,13 @@ def search_places(db: Session, keyword: str, limit: int = 20) -> list[dict]:
             )
         )
 
-    places = query.order_by(Place.title.asc()).limit(limit).all()
+    places = query.order_by(
+        case(
+            (Place.title == normalized_keyword, 0),
+            else_=1,
+        ),
+        Place.title.asc(),
+    ).limit(limit).all()
     return [
         {
             "id": place.id,
@@ -59,6 +73,7 @@ def list_places_by_category(db: Session, content_type_id: int, page: int = 1, pa
             "content_id": place.content_id,
             "title": place.title,
             "address": " ".join(part for part in (place.addr1, place.addr2) if part),
+            "first_image": normalize_place_image_url(place.first_image),
             "contentTypeId": place.content_type_id,
             "category": place.content_type,
         }

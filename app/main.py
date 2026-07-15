@@ -9,6 +9,7 @@ from app.api.festival import router as festival_router
 from app.api.place import router as place_router
 from app.api.post import router as post_router
 from app.api.route import router as route_router
+from app.cors import get_allowed_origins
 from app.db.database import init_db
 
 logging.basicConfig(
@@ -20,10 +21,7 @@ app = FastAPI(title="LocalHub Server")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
