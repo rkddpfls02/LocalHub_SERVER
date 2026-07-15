@@ -106,7 +106,6 @@ def extract_search_condition(query: str) -> dict[str, Any]:
                 },
                 {"role": "user", "content": query},
             ],
-            temperature=0,
         )
         condition = _parse_json_object(response.output_text.strip())
         if condition is None:

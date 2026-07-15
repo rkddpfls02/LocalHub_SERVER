@@ -60,7 +60,6 @@ def generate_answer(query: str, tool_result: dict[str, Any]) -> str:
                 {"role": "system", "content": "검색 결과에 근거해 정확하게 답하는 한국어 여행 챗봇입니다."},
                 {"role": "user", "content": build_prompt(query, tool_result)},
             ],
-            temperature=0.3,
         )
         answer = response.output_text.strip()
         if answer:
