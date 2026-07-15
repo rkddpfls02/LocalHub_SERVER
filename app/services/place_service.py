@@ -65,6 +65,7 @@ def list_places_by_category(db: Session, content_type_id: int, page: int = 1, pa
             "content_id": place.content_id,
             "title": place.title,
             "address": " ".join(part for part in (place.addr1, place.addr2) if part),
+            "first_image": place.first_image,
             "contentTypeId": place.content_type_id,
             "category": place.content_type,
         }

@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db.database import Base
 from app.models.place import Place
-from app.services.place_service import search_places
+from app.services.place_service import list_places_by_category, search_places
 
 
 def make_place(index: int, title: str) -> Place:
@@ -37,3 +37,26 @@ def test_search_places_prioritizes_all_exact_title_matches_before_partial_matche
     assert [result["title"] for result in results[:2]] == [keyword, keyword]
     assert {result["content_id"] for result in results[:2]} == {"content-100", "content-101"}
     assert all(set(result) == {"id", "content_id", "title", "address"} for result in results)
+
+
+def test_list_places_by_category_includes_first_image():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    place = make_place(1, "Image Place")
+    place.first_image = "https://example.com/place.jpg"
+    session.add(place)
+    session.commit()
+
+    result = list_places_by_category(session, 12)
+
+    assert result["page_size"] == 4
+    assert result["items"] == [{
+        "id": place.id,
+        "content_id": "content-1",
+        "title": "Image Place",
+        "address": "Busan",
+        "first_image": "https://example.com/place.jpg",
+        "contentTypeId": 12,
+        "category": "place",
+    }]

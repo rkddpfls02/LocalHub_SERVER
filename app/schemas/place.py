@@ -13,6 +13,7 @@ class PlaceCategoryItem(BaseModel):
     content_id: str
     title: str
     address: str
+    first_image: str | None = None
     contentTypeId: int
     category: str
 
