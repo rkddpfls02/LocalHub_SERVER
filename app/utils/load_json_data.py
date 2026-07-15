@@ -113,6 +113,32 @@ def load_place_jsons(
     return created
 
 
+def _parse_festival_date(value: Any) -> date | None:
+    if isinstance(value, date):
+        return value
+    if value in (None, ""):
+        return None
+
+    raw_value = str(value).strip()
+    if len(raw_value) == 8 and raw_value.isdigit():
+        try:
+            return date(int(raw_value[0:4]), int(raw_value[4:6]), int(raw_value[6:8]))
+        except ValueError:
+            return None
+
+    try:
+        return date.fromisoformat(raw_value)
+    except ValueError:
+        return None
+
+
+def _normalize_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 def load_festival_json(db: Session, overwrite: bool = False) -> int:
     if not FESTIVAL_DATA_FILE.exists():
         return 0
@@ -126,10 +152,9 @@ def load_festival_json(db: Session, overwrite: bool = False) -> int:
 
     created = 0
     for item in payload.get("items", []):
-        try:
-            start_date = date.fromisoformat(item["startDate"])
-            end_date = date.fromisoformat(item["endDate"])
-        except (KeyError, TypeError, ValueError):
+        start_date = _parse_festival_date(item.get("eventstartdate") or item.get("startDate"))
+        end_date = _parse_festival_date(item.get("eventenddate") or item.get("endDate"))
+        if start_date is None or end_date is None:
             continue
 
         if not overwrite:
@@ -146,6 +171,24 @@ def load_festival_json(db: Session, overwrite: bool = False) -> int:
             start_date=start_date,
             end_date=end_date,
             addr1=item.get("addr1", ""),
+            eventstartdate=_normalize_text(item.get("eventstartdate")),
+            eventenddate=_normalize_text(item.get("eventenddate")),
+            eventplace=_normalize_text(item.get("eventplace")),
+            playtime=_normalize_text(item.get("playtime")),
+            program=_normalize_text(item.get("program")),
+            subevent=_normalize_text(item.get("subevent")),
+            sponsor1=_normalize_text(item.get("sponsor1")),
+            sponsor1tel=_normalize_text(item.get("sponsor1tel")),
+            sponsor2=_normalize_text(item.get("sponsor2")),
+            sponsor2tel=_normalize_text(item.get("sponsor2tel")),
+            eventhomepage=_normalize_text(item.get("eventhomepage")),
+            bookingplace=_normalize_text(item.get("bookingplace")),
+            agelimit=_normalize_text(item.get("agelimit")),
+            festivalgrade=_normalize_text(item.get("festivalgrade")),
+            placeinfo=_normalize_text(item.get("placeinfo")),
+            spendtimefestival=_normalize_text(item.get("spendtimefestival")),
+            discountinfofestival=_normalize_text(item.get("discountinfofestival")),
+            usetimefestival=_normalize_text(item.get("usetimefestival")),
         ))
         created += 1
 

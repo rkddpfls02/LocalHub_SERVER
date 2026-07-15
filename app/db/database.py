@@ -24,6 +24,41 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
     _migrate_empty_legacy_post_tables()
+    _ensure_festival_columns()
+
+
+def _ensure_festival_columns() -> None:
+    inspector = inspect(engine)
+    if "festivals" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("festivals")}
+    required_columns = {
+        "eventstartdate": "TEXT",
+        "eventenddate": "TEXT",
+        "eventplace": "TEXT",
+        "playtime": "TEXT",
+        "program": "TEXT",
+        "subevent": "TEXT",
+        "sponsor1": "TEXT",
+        "sponsor1tel": "TEXT",
+        "sponsor2": "TEXT",
+        "sponsor2tel": "TEXT",
+        "eventhomepage": "TEXT",
+        "bookingplace": "TEXT",
+        "agelimit": "TEXT",
+        "festivalgrade": "TEXT",
+        "placeinfo": "TEXT",
+        "spendtimefestival": "TEXT",
+        "discountinfofestival": "TEXT",
+        "usetimefestival": "TEXT",
+    }
+
+    with engine.begin() as connection:
+        for column_name, column_type in required_columns.items():
+            if column_name in existing_columns:
+                continue
+            connection.execute(text(f"ALTER TABLE festivals ADD COLUMN {column_name} {column_type}"))
 
 
 def _migrate_empty_legacy_post_tables() -> None:
