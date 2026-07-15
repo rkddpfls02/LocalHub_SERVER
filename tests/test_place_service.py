@@ -3,7 +3,12 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db.database import Base
 from app.models.place import Place
-from app.services.place_service import list_places_by_category, normalize_place_image_url, search_places
+from app.services.place_service import (
+    list_places_by_category,
+    normalize_place_image_url,
+    search_places,
+    search_places_page,
+)
 
 
 def make_place(index: int, title: str) -> Place:
@@ -37,6 +42,37 @@ def test_search_places_prioritizes_all_exact_title_matches_before_partial_matche
     assert [result["title"] for result in results[:2]] == [keyword, keyword]
     assert {result["content_id"] for result in results[:2]} == {"content-100", "content-101"}
     assert all(set(result) == {"id", "content_id", "title", "address"} for result in results)
+
+
+def test_search_places_page_searches_all_card_fields_and_paginates():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+
+    exact_match = make_place(1, "Search Target")
+    exact_match.first_image = "http://tong.visitkorea.or.kr/cms/search.jpg"
+    exact_match.avg_rating = 4.5
+    exact_match.post_cnt = 7
+    partial_title = make_place(2, "A Search Target")
+    address_one = make_place(3, "Address One")
+    address_one.addr1 = "Search Target district"
+    address_two = make_place(4, "Address Two")
+    address_two.addr2 = "Search Target building"
+    session.add_all([exact_match, partial_title, address_one, address_two])
+    session.commit()
+
+    result = search_places_page(session, "Search Target", page=1, page_size=2)
+
+    assert result["total"] == 4
+    assert result["total_pages"] == 2
+    assert result["page"] == 1
+    assert [item["title"] for item in result["items"]] == ["Search Target", "A Search Target"]
+    assert result["items"][0]["first_image"] == "https://tong.visitkorea.or.kr/cms/search.jpg"
+    assert result["items"][0]["avg_rating"] == 4.5
+    assert result["items"][0]["post_cnt"] == 7
+
+    second_page = search_places_page(session, "Search Target", page=2, page_size=2)
+    assert [item["title"] for item in second_page["items"]] == ["Address One", "Address Two"]
 
 
 def test_list_places_by_category_includes_first_image_and_review_stats():
